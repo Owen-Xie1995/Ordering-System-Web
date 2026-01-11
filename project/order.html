@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>線上訂餐系統</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #fcb69f;
+      margin: 0;
+      padding: 0;
+    }
+    h1 {
+      text-align: center;
+      margin-top: 20px;
+    }
+    #category-buttons {
+      text-align: center;
+      margin: 20px;
+    }
+    #category-buttons button {
+      margin: 0 5px;
+      padding: 8px 16px;
+      border: none;
+      border-radius: 20px;
+      background-color: #3498db;
+      color: white;
+      cursor: pointer;
+    }
+    #category-buttons button:hover {
+      background-color: #2980b9;
+    }
+
+    .menu-container {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .menu-item {
+      width: 220px;
+      height: 300px;
+      margin: 15px;
+      perspective: 1000px;
+    }
+
+    .card-inner {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      transition: transform 0.8s;
+      transform-style: preserve-3d;
+    }
+
+    .menu-item:hover .card-inner {
+      transform: rotateY(180deg);
+    }
+
+    .card-front, .card-back {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      border-radius: 10px;
+      backface-visibility: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+
+    .card-front {
+      background: white;
+    }
+
+    .card-front img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 10px;
+    }
+
+    .card-back {
+      background: white;
+      transform: rotateY(180deg);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 15px;
+      text-align: center;
+    }
+
+    .card-back h3 {
+      margin: 10px 0 5px;
+    }
+
+    .card-back p {
+      font-size: 14px;
+      color: #555;
+    }
+
+    .card-back .price {
+      margin: 8px 0;
+      color: #e67e22;
+      font-weight: bold;
+      font-size: 16px;
+    }
+
+    .card-back button {
+      padding: 8px;
+      background: #2ecc71;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    .card-back button:hover {
+      background: #27ae60;
+    }
+
+    .cart-button {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: #e74c3c;
+      color: white;
+      padding: 15px;
+      border: none;
+      border-radius: 50%;
+      font-size: 20px;
+      cursor: pointer;
+      box-shadow: 0 3px 6px rgba(0,0,0,0.3);
+      z-index: 1000;
+    }
+
+    .cart {
+      position: fixed;
+      bottom: 100px;
+      right: 20px;
+      width: 300px;
+      background: white;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      display: none;
+      flex-direction: column;
+      max-height: 400px;
+      overflow-y: auto;
+      animation: slideUp 0.4s ease forwards;
+      z-index: 999;
+    }
+
+    @keyframes slideUp {
+      from { transform: translateY(20px); opacity: 0; }
+      to   { transform: translateY(0); opacity: 1; }
+    }
+
+    .cart h2 {
+      margin: 10px;
+      text-align: center;
+    }
+
+    .cart-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 10px;
+      border-bottom: 1px solid #eee;
+    }
+
+    .cart-item button {
+      padding: 3px 8px;
+      margin: 0 2px;
+      background: #95a5a6;
+      border: none;
+      color: white;
+      border-radius: 3px;
+    }
+
+    .cart-total {
+      text-align: right;
+      padding: 10px;
+      font-weight: bold;
+    }
+
+    .cart-controls {
+      text-align: right;
+      padding: 0 10px 10px;
+    }
+
+    .cart-controls button {
+      padding: 6px 10px;
+      background: #e67e22;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    .cart-controls button:hover {
+      background: #d35400;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>線上訂餐系統</h1>
+  <div id="category-buttons"></div>
+  <div class="menu-container" id="menu"></div>
+
+  <button class="cart-button" onclick="toggleCart()">🛒</button>
+  <div class="cart" id="cart">
+    <h2>購物車</h2>
+    <div id="cart-items"></div>
+    <div class="cart-total" id="cart-total">總計：0 元</div>
+    <div class="cart-controls">
+      <button onclick="clearCart()">🗑️ 清空</button>
+    </div>
+  </div>
+
+  <script>
+    const menuData = [
+      {id:1, category:'主餐', name:'蜜汁烤雞腿飯', desc:'香甜多汁的招牌烤雞腿', price:120, image:'1.png'},
+      {id:2, category:'主餐', name:'蔥油拌麵', desc:'Q彈麵條搭配香蔥油醬', price:60, image:'2.png'},
+      {id:3, category:'主餐', name:'泡菜炒飯', desc:'酸辣開胃，韓式風味', price:80, image:'3.png'},
+      {id:4, category:'主餐', name:'牛肉炒飯', desc:'鹹香爽口，經典台式', price:80, image:'6.png'},
+      {id:5, category:'主餐', name:'豬肉炒飯', desc:'爆汁噴香，瘋台客！', price:80, image:'7.png'},
+      {id:6, category:'主餐', name:'羊肉炒飯', desc:'口齒留香，飄香千里', price:80, image:'8.png'},
+      {id:7, category:'主餐', name:'黑椒牛柳飯', desc:'胡辣味蕾，一口接一口', price:100, image:'9.png'},
+      {id:8, category:'飲料', name:'珍珠奶茶', desc:'Ｑ彈有勁，濃郁奶香', price:60, image:'4.png'},
+      {id:8, category:'飲料', name:'奶茶', desc:'經典台味，絲滑牛奶', price:45, image:'10.png'},
+      {id:8, category:'飲料', name:'烏龍茶', desc:'深邃茶韻，回甘喉韻', price:35, image:'11.png'},
+      {id:8, category:'飲料', name:'東方美人茶', desc:'蜜果花香，醇厚熟成', price:35, image:'12.png'},
+      {id:8, category:'飲料', name:'茉莉綠茶', desc:'清雅花香，甘甜爽口', price:35, image:'13.png'},
+      {id:8, category:'飲料', name:'烏龍奶蓋', desc:'醇厚茶底，雲朵輕吻', price:55, image:'14.png'},
+      {id:8, category:'飲料', name:'紅茶奶蓋', desc:'濃郁茶香，醇厚綿密', price:55, image:'15.png'},
+      {id:9, category:'點心', name:'雞塊', desc:'外酥內嫩，人氣點心', price:60, image:'5.png'},
+      {id:10, category:'點心', name:'薯條', desc:'金黃酥脆，鹹香誘人', price:60, image:'16.png'},
+      {id:11, category:'點心', name:'熱狗', desc:'飽滿多汁，風味百搭', price:60, image:'17.png'},
+      {id:12, category:'點心', name:'洋蔥圈', desc:'外酥內軟，辛甜交織', price:60, image:'18.png'},
+    ];
+
+    const cart = {};
+    const cartEl = document.getElementById('cart');
+    const cartItemsEl = document.getElementById('cart-items');
+    const cartTotalEl = document.getElementById('cart-total');
+
+    function renderMenu(category = '全部') {
+      const container = document.getElementById('menu');
+      container.innerHTML = '';
+      const filtered = category === '全部' ? menuData : menuData.filter(i => i.category === category);
+      filtered.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'menu-item';
+        div.innerHTML = `
+          <div class="card-inner">
+            <div class="card-front">
+              <img src="${item.image}" alt="${item.name}">
+            </div>
+            <div class="card-back">
+              <h3>${item.name}</h3>
+              <p>${item.desc}</p>
+              <div class="price">${item.price} 元</div>
+              <button onclick="addToCart(${item.id})">加入購物車</button>
+            </div>
+          </div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    function renderCategories() {
+      const categories = [...new Set(menuData.map(i => i.category))];
+      const btnContainer = document.getElementById('category-buttons');
+      btnContainer.innerHTML = `<button onclick="filterCategory('全部')">全部</button>`;
+      categories.forEach(c => {
+        btnContainer.innerHTML += `<button onclick="filterCategory('${c}')">${c}</button>`;
+      });
+    }
+
+    function filterCategory(category) {
+      renderMenu(category);
+    }
+
+    function addToCart(id) {
+      if(cart[id]) cart[id]++;
+      else cart[id] = 1;
+      renderCart();
+    }
+
+    function changeQty(id, delta) {
+      if(cart[id]) {
+        cart[id] += delta;
+        if(cart[id] <= 0) delete cart[id];
+        renderCart();
+      }
+    }
+
+    function clearCart() {
+      for (let id in cart) delete cart[id];
+      renderCart();
+    }
+
+    function renderCart() {
+      cartItemsEl.innerHTML = '';
+      let total = 0;
+      for (let id in cart) {
+        const item = menuData.find(i => i.id == id);
+        const qty = cart[id];
+        total += item.price * qty;
+        const itemEl = document.createElement('div');
+        itemEl.className = 'cart-item';
+        itemEl.innerHTML = `
+          <span>${item.name}</span>
+          <div>
+            <button onclick="changeQty(${id}, -1)">-</button>
+            <span>${qty}</span>
+            <button onclick="changeQty(${id}, 1)">+</button>
+          </div>
+        `;
+        cartItemsEl.appendChild(itemEl);
+      }
+      cartTotalEl.textContent = `總計：${total} 元`;
+    }
+
+    function toggleCart() {
+      if (cartEl.style.display === 'flex') {
+        cartEl.style.display = 'none';
+      } else {
+        cartEl.style.display = 'flex';
+        cartEl.style.animation = 'slideUp 0.4s ease forwards';
+      }
+    }
+
+    // 初始化
+    renderCategories();
+    renderMenu();
+  </script>
+
+</body>
+</html>

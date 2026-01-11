@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>會員登入</title>
+  <style>
+    body {
+      font-family: "Segoe UI", sans-serif;
+      background: linear-gradient(to bottom right, #ffecd2, #fcb69f);
+      margin: 0;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+
+    .login-container {
+      background-color: #fff;
+      padding: 2rem 3rem;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      width: 100%;
+      max-width: 400px;
+      text-align: center;
+    }
+
+    .login-container h2 {
+      color: #ff5722;
+      margin-bottom: 1.5rem;
+    }
+
+    .login-container input[type="text"],
+    .login-container input[type="password"] {
+      width: 100%;
+      padding: 0.75rem;
+      margin: 0.5rem 0 1rem 0;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 1rem;
+    }
+
+    .login-container button {
+      padding: 0.75rem 2rem;
+      background-color: #ff5722;
+      color: white;
+      border: none;
+      border-radius: 30px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background-color 0.3s, transform 0.3s;
+    }
+
+    .login-container button:hover {
+      background-color: #e64a19;
+      transform: scale(1.05);
+    }
+
+    .login-container .note {
+      margin-top: 1rem;
+      font-size: 0.9rem;
+      color: #666;
+    }
+
+  </style>
+</head>
+<body>
+  <div class="login-container">
+    <h2>會員登入</h2>
+    <form action="login.php" method="post">
+      <input type="text" name="a" placeholder="帳號" required>
+      <input type="password" name="pw" placeholder="密碼" required>
+      <img src="captcha.php" alt="驗證碼"><br>
+      <input type="text" name="captcha" required><br><br>
+      <button type="submit">登入</button>
+    </form>
+    <div class="note">尚未加入會員？快快加入領取更多優惠!</div>
+  </div>
+</body>
+</html>
