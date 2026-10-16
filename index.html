@@ -110,7 +110,7 @@
       box-shadow: 0 -1px 5px rgba(0,0,0,0.05);
     }
 
-    
+
 
     #contentFrame {
       width: 100%;
@@ -131,9 +131,9 @@
     <h1>🍽 美食訂餐網</h1>
     <ul>
       <li><a href="#" id="homeBtn">首頁</a></li>
-      <li><a href="#" id="orderBtn">訂餐系統</a></li>
+      <li><a href="#" id="orderBtn">選餐展示</a></li>
       <li><a href="#" id="loginBtn">會員登入</a></li>
-      <li><a href="#" id="registerBtn">註冊</a></li>
+      <li><a href="#" id="registerBtn" style="display:none;">註冊</a></li>
       <li><a href="#" id="adminBtn" style="display:none;">後台管理</a></li>
       <li><a href="#" id="logoutBtn" style="display:none;">登出</a></li>
     </ul>
@@ -141,83 +141,79 @@
 
   <header id="mainHeader">
     <h2>歡迎來到美食訂餐網</h2>
-    <p>在家也能輕鬆享受多樣美食，立即開啟美味旅程！</p>
-    <a class="button" href="#" id="orderBtnButton">馬上訂餐</a>
+    <p>試選喜歡的餐點，查看購物車與價格。</p>
+    <p id="modeNotice">目前為選餐展示模式，尚未開放送出訂單。</p>
+    <a class="button" href="#" id="orderBtnButton">開始選餐</a>
   </header>
 
-  <iframe id="contentFrame" src=""></iframe>
+  <iframe id="contentFrame" title="選餐與會員內容"></iframe>
 
   <footer>
-    &copy; 2025 美食訂餐網 | 本網站由你我共同打造
+    美食訂餐網 · 選餐與會員管理練習專案
   </footer>
 
   <script>
     const contentFrame = document.getElementById('contentFrame');
     const mainHeader = document.getElementById('mainHeader');
-
+    let session = null;
     const showIframe = (page) => {
       mainHeader.style.display = 'none';
       contentFrame.style.display = 'block';
       contentFrame.src = page;
       contentFrame.scrollIntoView({ behavior: 'smooth' });
     };
-
-    document.getElementById('orderBtn').addEventListener('click', e => {
-      e.preventDefault();
-      showIframe('order.html');
-    });
-
-    document.getElementById('orderBtnButton').addEventListener('click', e => {
-      e.preventDefault();
-      showIframe('order.html');
-    });
-
+    async function refreshSession() {
+      if (location.protocol === 'file:' || location.hostname.endsWith('.github.io')) return;
+      try {
+        const response = await fetch('session.php', {cache: 'no-store'});
+        if (!response.ok || !response.headers.get('content-type')?.includes('application/json')) throw new Error();
+        const data = await response.json();
+        if (typeof data.authenticated !== 'boolean' || typeof data.csrf !== 'string') throw new Error();
+        session = data;
+      } catch {
+        session = null;
+      }
+      document.getElementById('loginBtn').textContent = session?.authenticated ? '會員中心' : '會員登入';
+      document.getElementById('registerBtn').style.display = session && !session.authenticated ? 'inline' : 'none';
+      document.getElementById('adminBtn').style.display = session?.is_admin ? 'inline' : 'none';
+      document.getElementById('logoutBtn').style.display = session?.authenticated ? 'inline' : 'none';
+    }
+    for (const id of ['orderBtn', 'orderBtnButton']) {
+      document.getElementById(id).addEventListener('click', e => { e.preventDefault(); showIframe('order.html'); });
+    }
     document.getElementById('loginBtn').addEventListener('click', e => {
       e.preventDefault();
-      showIframe('login.html');
+      showIframe(session ? (session.authenticated ? 'home.php' : 'login.php') : 'login.html');
     });
-
     document.getElementById('registerBtn').addEventListener('click', e => {
       e.preventDefault();
-      showIframe('register.php');
+      showIframe(session ? 'register.php' : 'login.html');
     });
-
-    document.getElementById('adminBtn').addEventListener('click', e => {
+    document.getElementById('adminBtn').addEventListener('click', e => { e.preventDefault(); showIframe('admin.php'); });
+    document.getElementById('logoutBtn').addEventListener('click', async e => {
       e.preventDefault();
-      showIframe('admin.php');
+      if (!session) return;
+      try {
+        const response = await fetch('logout.php', {method: 'POST', body: new URLSearchParams({csrf: session.csrf})});
+        if (!response.ok) throw new Error();
+        await refreshSession();
+        showIframe('login.php');
+      } catch {
+        alert('登出未完成，請重新開啟會員中心後再試。');
+      }
     });
-
-    document.getElementById('logoutBtn').addEventListener('click', e => {
-      e.preventDefault();
-      contentFrame.src = 'logout.php';
-      contentFrame.style.display = 'block';
-      mainHeader.style.display = 'none';
-
-      // 顯示登入註冊，隱藏登出與後台
-      document.getElementById('loginBtn').style.display = "inline";
-      document.getElementById('registerBtn').style.display = "inline";
-      document.getElementById('adminBtn').style.display = "none";
-      document.getElementById('logoutBtn').style.display = "none";
-    });
-
     document.getElementById('homeBtn').addEventListener('click', e => {
       e.preventDefault();
       mainHeader.style.display = 'flex';
       contentFrame.style.display = 'none';
-      contentFrame.src = '';
+      contentFrame.removeAttribute('src');
       window.scrollTo({ top: 0, behavior: 'smooth' });
     });
-
-    // 接收登入成功訊息
-    window.addEventListener("message", function (e) {
-      if (e.data === "login-success") {
-      document.getElementById("loginBtn").style.display = "none";
-      document.getElementById("registerBtn").style.display = "none";
-      document.getElementById("adminBtn").style.display = "inline";
-      document.getElementById("logoutBtn").style.display = "inline";
-      }
+    window.addEventListener('message', e => {
+      if (e.origin === location.origin && e.source === contentFrame.contentWindow && e.data === 'session-changed') refreshSession();
     });
+    contentFrame.addEventListener('load', refreshSession);
+    refreshSession();
   </script>
 </body>
 </html>
-

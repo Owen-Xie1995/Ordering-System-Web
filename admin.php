@@ -1,24 +1,30 @@
 <?php
-// 連線設定
-$con = mysqli_connect("localhost", "root", "", "uch");
-mysqli_query($con, "SET NAMES utf8");
-
-// 處理調整庫存表單送出
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['id']) && isset($_POST['quantity'])) {
-    $id = intval($_POST['id']);
-    $quantity = intval($_POST['quantity']);
-
-    $stmt = $con->prepare("UPDATE inventory SET quantity = ? WHERE id = ?");
-    $stmt->bind_param("ii", $quantity, $id);
-    $stmt->execute();
-    $stmt->close();
-
-    echo "<script>alert('更新成功！'); window.location.href = 'inventory_admin.php';</script>";
-    exit;
+require __DIR__ . '/includes/app.php';
+require_admin();
+$error = '';
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    require_csrf();
+    $id = filter_var($_POST['id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+    $quantity = checked_quantity($_POST['quantity'] ?? null);
+    if (!$id || $quantity === null) {
+        http_response_code(422);
+        $error = '庫存需為 0–999999999 的整數。';
+    } else {
+        $stmt = db()->prepare('SELECT id FROM inventory WHERE id = ?');
+        $stmt->bind_param('i', $id);
+        $stmt->execute();
+        if (!$stmt->get_result()->fetch_assoc()) {
+            http_response_code(404);
+            $error = '找不到此商品。';
+        } else {
+            $stmt = db()->prepare('UPDATE inventory SET quantity = ? WHERE id = ?');
+            $stmt->bind_param('ii', $quantity, $id);
+            $stmt->execute();
+            redirect('admin.php?updated=1');
+        }
+    }
 }
-
-// 讀取所有商品資料
-$result = mysqli_query($con, "SELECT id, product_name, quantity FROM inventory");
+$result = db()->query('SELECT id, product_name, quantity FROM inventory ORDER BY id');
 ?>
 
 <!DOCTYPE html>
@@ -39,7 +45,8 @@ $result = mysqli_query($con, "SELECT id, product_name, quantity FROM inventory")
       max-width: 900px;
       margin: auto;
       background-color: #fff;
-      padding: 2rem 3rem;
+      padding: 2rem;
+      overflow-x: auto;
       border-radius: 10px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     }
@@ -110,6 +117,9 @@ $result = mysqli_query($con, "SELECT id, product_name, quantity FROM inventory")
 <body>
   <div class="admin-container">
     <h2>庫存查看與調整</h2>
+    <p>庫存資料供管理展示，尚未與選餐購物車連動。</p>
+    <?php if (isset($_GET['updated'])): ?><p role="status">庫存已更新。</p><?php endif; ?>
+    <?php if ($error): ?><p role="alert"><?= h($error) ?></p><?php endif; ?>
     <table>
       <thead>
         <tr>
@@ -121,12 +131,13 @@ $result = mysqli_query($con, "SELECT id, product_name, quantity FROM inventory")
       <tbody>
         <?php while ($row = mysqli_fetch_assoc($result)): ?>
         <tr>
-          <td><?= htmlspecialchars($row['product_name']) ?></td>
+          <td><?= h($row['product_name']) ?></td>
           <td><?= $row['quantity'] ?></td>
           <td>
-            <form method="post" action="">
+            <form method="post" action="admin.php">
+              <input type="hidden" name="csrf" value="<?= h(csrf_token()) ?>">
               <input type="hidden" name="id" value="<?= $row['id'] ?>">
-              <input type="number" name="quantity" value="<?= $row['quantity'] ?>" min="0" required>
+              <input type="number" name="quantity" value="<?= $row['quantity'] ?>" min="0" max="999999999" step="1" required>
               <input type="submit" value="更新">
             </form>
           </td>
@@ -135,7 +146,7 @@ $result = mysqli_query($con, "SELECT id, product_name, quantity FROM inventory")
       </tbody>
     </table>
 
-    <a href="home.html" target="_top" class="logout-btn">回主頁</a>
+    <a href="index.html" target="_top" class="logout-btn">回主頁</a>
   </div>
 </body>
 </html>

@@ -53,12 +53,13 @@
       transform-style: preserve-3d;
     }
 
-    .menu-item:hover .card-inner {
+    .menu-item:hover .card-inner, .menu-item:focus-within .card-inner {
       transform: rotateY(180deg);
     }
 
     .card-front, .card-back {
       position: absolute;
+      box-sizing: border-box;
       width: 100%;
       height: 100%;
       border-radius: 10px;
@@ -203,43 +204,26 @@
 </head>
 <body>
 
-  <h1>線上訂餐系統</h1>
+  <h1>線上選餐展示</h1>
+  <p style="text-align:center">可試選餐點與調整購物車；目前不會送出訂單，重新整理後會清空。</p>
   <div id="category-buttons"></div>
   <div class="menu-container" id="menu"></div>
 
-  <button class="cart-button" onclick="toggleCart()">🛒</button>
+  <button aria-label="開啟或收合購物車" class="cart-button" onclick="toggleCart()">🛒</button>
   <div class="cart" id="cart">
     <h2>購物車</h2>
     <div id="cart-items"></div>
-    <div class="cart-total" id="cart-total">總計：0 元</div>
+    <div class="cart-total" id="cart-total" aria-live="polite">總計：0 元</div>
     <div class="cart-controls">
       <button onclick="clearCart()">🗑️ 清空</button>
     </div>
   </div>
 
-  <script>
-    const menuData = [
-      {id:1, category:'主餐', name:'蜜汁烤雞腿飯', desc:'香甜多汁的招牌烤雞腿', price:120, image:'1.png'},
-      {id:2, category:'主餐', name:'蔥油拌麵', desc:'Q彈麵條搭配香蔥油醬', price:60, image:'2.png'},
-      {id:3, category:'主餐', name:'泡菜炒飯', desc:'酸辣開胃，韓式風味', price:80, image:'3.png'},
-      {id:4, category:'主餐', name:'牛肉炒飯', desc:'鹹香爽口，經典台式', price:80, image:'6.png'},
-      {id:5, category:'主餐', name:'豬肉炒飯', desc:'爆汁噴香，瘋台客！', price:80, image:'7.png'},
-      {id:6, category:'主餐', name:'羊肉炒飯', desc:'口齒留香，飄香千里', price:80, image:'8.png'},
-      {id:7, category:'主餐', name:'黑椒牛柳飯', desc:'胡辣味蕾，一口接一口', price:100, image:'9.png'},
-      {id:8, category:'飲料', name:'珍珠奶茶', desc:'Ｑ彈有勁，濃郁奶香', price:60, image:'4.png'},
-      {id:8, category:'飲料', name:'奶茶', desc:'經典台味，絲滑牛奶', price:45, image:'10.png'},
-      {id:8, category:'飲料', name:'烏龍茶', desc:'深邃茶韻，回甘喉韻', price:35, image:'11.png'},
-      {id:8, category:'飲料', name:'東方美人茶', desc:'蜜果花香，醇厚熟成', price:35, image:'12.png'},
-      {id:8, category:'飲料', name:'茉莉綠茶', desc:'清雅花香，甘甜爽口', price:35, image:'13.png'},
-      {id:8, category:'飲料', name:'烏龍奶蓋', desc:'醇厚茶底，雲朵輕吻', price:55, image:'14.png'},
-      {id:8, category:'飲料', name:'紅茶奶蓋', desc:'濃郁茶香，醇厚綿密', price:55, image:'15.png'},
-      {id:9, category:'點心', name:'雞塊', desc:'外酥內嫩，人氣點心', price:60, image:'5.png'},
-      {id:10, category:'點心', name:'薯條', desc:'金黃酥脆，鹹香誘人', price:60, image:'16.png'},
-      {id:11, category:'點心', name:'熱狗', desc:'飽滿多汁，風味百搭', price:60, image:'17.png'},
-      {id:12, category:'點心', name:'洋蔥圈', desc:'外酥內軟，辛甜交織', price:60, image:'18.png'},
-    ];
+  <script type="module">
+    import { menuData } from './assets/menu-data.js';
+    import { Cart } from './assets/cart.js';
 
-    const cart = {};
+    const cart = new Cart(menuData);
     const cartEl = document.getElementById('cart');
     const cartItemsEl = document.getElementById('cart-items');
     const cartTotalEl = document.getElementById('cart-total');
@@ -251,6 +235,8 @@
       filtered.forEach(item => {
         const div = document.createElement('div');
         div.className = 'menu-item';
+        div.tabIndex = 0;
+        div.setAttribute('aria-label', item.name);
         div.innerHTML = `
           <div class="card-inner">
             <div class="card-front">
@@ -282,31 +268,25 @@
     }
 
     function addToCart(id) {
-      if(cart[id]) cart[id]++;
-      else cart[id] = 1;
+      cart.add(id);
       renderCart();
     }
 
     function changeQty(id, delta) {
-      if(cart[id]) {
-        cart[id] += delta;
-        if(cart[id] <= 0) delete cart[id];
-        renderCart();
-      }
+      cart.changeQty(id, delta);
+      renderCart();
     }
 
     function clearCart() {
-      for (let id in cart) delete cart[id];
+      cart.clear();
       renderCart();
     }
 
     function renderCart() {
       cartItemsEl.innerHTML = '';
-      let total = 0;
-      for (let id in cart) {
-        const item = menuData.find(i => i.id == id);
-        const qty = cart[id];
-        total += item.price * qty;
+      const total = cart.total();
+      for (const { item, quantity: qty } of cart.entries()) {
+        const id = item.id;
         const itemEl = document.createElement('div');
         itemEl.className = 'cart-item';
         itemEl.innerHTML = `
@@ -330,6 +310,9 @@
         cartEl.style.animation = 'slideUp 0.4s ease forwards';
       }
     }
+
+    // Keep the existing button handlers available from module scope.
+    Object.assign(window, { addToCart, changeQty, clearCart, toggleCart, filterCategory });
 
     // 初始化
     renderCategories();
